@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Yango · Competitive Intelligence</title>
+<title>Yango Â· Competitive Intelligence</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
   :root {
@@ -180,18 +180,18 @@
   <div class="header-left">
     <div class="header-logo">Y</div>
     <div>
-      <div class="header-title">Competitive Intelligence · Ride-Hailing</div>
-      <div class="header-sub">Precios Yango vs. Ridery vs. Yummy · Live desde Google Sheets</div>
+      <div class="header-title">Competitive Intelligence Â· Ride-Hailing</div>
+      <div class="header-sub">Precios Yango vs. Ridery vs. Yummy Â· Live desde Google Sheets</div>
     </div>
   </div>
   <div class="header-right">
     <div class="status" id="status">Cargando...</div>
-    <button class="refresh-btn" onclick="loadData()">↻ Actualizar</button>
+    <button class="refresh-btn" onclick="loadData()">â†» Actualizar</button>
   </div>
 </div>
 
 <div class="filters">
-  <div class="filter-group"><label>Categoría</label><select id="f-cat" onchange="render()"><option value="">Todas</option></select></div>
+  <div class="filter-group"><label>CategorÃ­a</label><select id="f-cat" onchange="render()"><option value="">Todas</option></select></div>
   <div class="filter-group"><label>Distance bracket</label><select id="f-bracket" onchange="render()"><option value="">Todos</option></select></div>
   <div class="filter-group"><label>Peak</label><select id="f-peak" onchange="render()"><option value="">Todos</option><option>Evening Peak</option><option>Morning Peak</option></select></div>
   <div class="filter-group"><label>Surge</label><select id="f-surge" onchange="render()"><option value="">Todos</option><option>Yes</option><option>No</option></select></div>
@@ -201,7 +201,7 @@
 
 <div class="content">
 
-  <div class="section-label">Promedio de Price W/O Discount por fecha · Competition Name · Distance bracket</div>
+  <div class="section-label">Promedio de Price W/O Discount por fecha Â· Competition Name Â· Distance bracket</div>
 
   <div class="legend" id="main-leg">
     <span><span class="leg-line ridery"></span>Ridery</span>
@@ -209,7 +209,7 @@
     <span><span class="leg-line yummy"></span>Yummy</span>
   </div>
 
-  <div class="charts-grid" id="charts-grid"><div class="loading">Cargando gráficas...</div></div>
+  <div class="charts-grid" id="charts-grid"><div class="loading">Cargando grÃ¡ficas...</div></div>
 
   <div class="tables-row">
     <div class="tbl-card">
@@ -224,11 +224,11 @@
 
   <div class="tables-row">
     <div class="tbl-card">
-      <div class="section-label">Por Peak · Precios absolutos</div>
+      <div class="section-label">Por Peak Â· Precios absolutos</div>
       <div id="tbl-peak-abs"><div class="loading">...</div></div>
     </div>
     <div class="tbl-card">
-      <div class="section-label">Por Peak · Diferencial %</div>
+      <div class="section-label">Por Peak Â· Diferencial %</div>
       <div id="tbl-peak-diff"><div class="loading">...</div></div>
     </div>
   </div>
@@ -244,7 +244,7 @@ const APP_CLASS = { Yango: 'th-app-yango', Ridery: 'th-app-ridery', Yummy: 'th-a
 
 let raw = [], charts = {};
 
-function gvizUrl(id){ return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json`; }
+function gvizUrl(id){ return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&gid=1685563282`; }
 
 async function loadData(){
   document.getElementById('status').textContent = 'Actualizando...';
@@ -264,7 +264,7 @@ async function loadData(){
     document.getElementById('status').textContent = `Actualizado: ${n.toLocaleString('es-VE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
   } catch(e) {
     document.getElementById('status').textContent = 'Error al cargar';
-    document.getElementById('charts-grid').innerHTML = `<div class="error">No se pudo conectar al Google Sheet.<br>Verifica que esté compartido como público (cualquiera con el enlace).</div>`;
+    document.getElementById('charts-grid').innerHTML = `<div class="error">No se pudo conectar al Google Sheet.<br>Verifica que estÃ© compartido como pÃºblico (cualquiera con el enlace).</div>`;
   }
 }
 
