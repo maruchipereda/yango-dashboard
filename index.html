@@ -18,8 +18,8 @@
     --text3: #888;
     --neg: #1a7d3a;
     --pos: #c0392b;
-    --header-bg: #243F60;
-    --filter-bg: #2E5481;
+    --header-bg: #2a2a2a;
+    --filter-bg: #3d3d3d;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 13px; }
@@ -35,7 +35,7 @@
     gap: 10px;
   }
   .header-left { display: flex; align-items: center; gap: 12px; }
-  .header-logo { width: 32px; height: 32px; background: var(--yango); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: #fff; }
+  .header-logo { height: 36px; display: flex; align-items: center; }
   .header-title { font-size: 16px; font-weight: 600; }
   .header-sub { font-size: 11px; opacity: 0.7; margin-top: 2px; }
   .header-right { display: flex; align-items: center; gap: 10px; }
@@ -101,7 +101,7 @@
 
 <div class="header">
   <div class="header-left">
-    <div class="header-logo">Y</div>
+    <div class="header-logo"><img src="logo.png" alt="Yango" style="height:28px;display:block;"></div>
     <div>
       <div class="header-title">Competitive Intelligence - Ride-Hailing</div>
       <div class="header-sub">Precios Yango vs. Ridery vs. Yummy - Live desde Google Sheets</div>
