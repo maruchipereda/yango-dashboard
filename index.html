@@ -220,7 +220,9 @@ async function loadData(){
 function parsePrice(v){
   if(typeof v === 'number') return v;
   if(!v) return null;
-  var n = parseFloat(String(v).replace(/[^0-9.\-]/g,''));
+  // Remove $ and spaces, replace comma decimal separator with dot
+  var s = String(v).replace(/[$\s]/g,'').replace(',','.');
+  var n = parseFloat(s);
   return isNaN(n) ? null : n;
 }
 
