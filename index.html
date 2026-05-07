@@ -190,7 +190,9 @@ async function loadData(){
 
     if(raw.length){
       var keys = Object.keys(raw[0]);
-      PRICE_COL   = keys.find(function(k){ return /price/i.test(k) && /discount/i.test(k); })
+      PRICE_COL   = keys.find(function(k){ return /price/i.test(k) && /w\/o/i.test(k); })
+                 || keys.find(function(k){ return /price/i.test(k) && /without/i.test(k); })
+                 || keys.find(function(k){ return /price/i.test(k) && /discount/i.test(k) && !/^price with/i.test(k); })
                  || keys.find(function(k){ return /price/i.test(k); }) || 'Price W/O Discount';
       COMP_COL    = keys.find(function(k){ return /competition/i.test(k); }) || 'Competition Name';
       CAT_COL     = keys.find(function(k){ return /category/i.test(k); })   || 'Our Category';
