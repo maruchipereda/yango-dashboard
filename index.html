@@ -243,7 +243,8 @@ function parseDate(v){
     v = v.trim();
     var slash = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if(slash){
-      var d2 = new Date(parseInt(slash[3]), parseInt(slash[1])-1, parseInt(slash[2]));
+      // Format is DD/MM/YYYY
+      var d2 = new Date(parseInt(slash[3]), parseInt(slash[2])-1, parseInt(slash[1]));
       return isNaN(d2.getTime()) ? null : d2;
     }
     var iso = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
