@@ -201,10 +201,15 @@ async function loadData(){
       DATE_COL    = keys.find(function(k){ return /^date$/i.test(k); })     || 'Date';
       SURGE_COL   = keys.find(function(k){ return /^surge$/i.test(k); })    || 'Surge';
 
-      document.getElementById('debug-info').textContent =
-        'Columnas detectadas | precio: "' + PRICE_COL + '" | comp: "' + COMP_COL +
-        '" | cat: "' + CAT_COL + '" | bracket: "' + BRACKET_COL +
-        '" | fecha: "' + DATE_COL + '" | Total filas: ' + raw.length;
+      var sample = raw[0];
+      var allApps = Array.from(new Set(raw.map(function(r){ return r[COMP_COL]; }).filter(Boolean)));
+      var allBrackets = Array.from(new Set(raw.map(function(r){ return r[BRACKET_COL]; }).filter(Boolean)));
+      var allDates = Array.from(new Set(raw.map(function(r){ return toISO(r[DATE_COL]); }).filter(Boolean))).sort();
+      document.getElementById('debug-info').innerHTML =
+        '<b>Cols:</b> precio="'+PRICE_COL+'" | comp="'+COMP_COL+'" | bracket="'+BRACKET_COL+'" | fecha="'+DATE_COL+'"<br>'+
+        '<b>Filas:</b> '+raw.length+' | <b>Apps:</b> '+allApps.join(', ')+' | <b>Brackets:</b> '+allBrackets.join(', ')+'<br>'+
+        '<b>Fechas:</b> '+allDates[0]+' hasta '+allDates[allDates.length-1]+' ('+allDates.length+' unicas)<br>'+
+        '<b>Fila 0:</b> precio_raw="'+sample[PRICE_COL]+'" | precio_parseado='+parsePrice(sample[PRICE_COL])+' | fecha_raw="'+sample[DATE_COL]+'" | fecha_parseada='+toISO(sample[DATE_COL])+' | bracket="'+sample[BRACKET_COL]+'" | app="'+sample[COMP_COL]+'"';
     }
 
     populateFilters();
