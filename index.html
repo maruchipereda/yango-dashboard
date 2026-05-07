@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yango · Competitive Intelligence</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --yango: #E02020;
+    --ridery: #00BFA5;
+    --yummy: #7B2FBE;
+    --bg: #f4f4f4;
+    --surface: #ffffff;
+    --border: #e0e0e0;
+    --text: #1a1a1a;
+    --text2: #555;
+    --text3: #888;
+    --neg: #1a7d3a;
+    --pos: #c0392b;
+    --header-bg: #243F60;
+    --header-text: #ffffff;
+    --filter-bg: #2E5481;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 13px; }
+
+  .header {
+    background: var(--header-bg);
+    color: var(--header-text);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .header-logo { width: 32px; height: 32px; background: var(--yango); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: #fff; }
+  .header-title { font-size: 16px; font-weight: 600; letter-spacing: 0.01em; }
+  .header-sub { font-size: 11px; opacity: 0.7; margin-top: 1px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .refresh-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .refresh-btn:hover { background: rgba(255,255,255,0.25); }
+  .status { font-size: 11px; opacity: 0.65; }
+
+  .filters {
+    background: var(--filter-bg);
+    padding: 10px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+  }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-group label { font-size: 11px; color: rgba(255,255,255,0.75); white-space: nowrap; }
+  .filters select, .filters input[type=date] {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    cursor: pointer;
+  }
+  .filters select option { background: #2E5481; color: #fff; }
+
+  .content { padding: 16px 24px; }
+
+  .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .leg-line {
+    width: 24px;
+    height: 3px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .leg-line.ridery { background: var(--ridery); }
+  .leg-line.yango { background: var(--yango); }
+  .leg-line.yummy { background: var(--yummy); border-top: 2px dashed var(--yummy); height: 0; }
+
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+  }
+  .chart-card .ct {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .tables-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .tbl-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    overflow-x: auto;
+  }
+  .tbl-card .section-label { margin-bottom: 8px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  thead tr { background: #EEF2F8; }
+  th {
+    font-weight: 600;
+    color: var(--text2);
+    text-align: right;
+    padding: 6px 8px;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  th:first-child { text-align: left; }
+  td {
+    text-align: right;
+    padding: 5px 8px;
+    color: var(--text);
+    border-bottom: 1px solid #f0f0f0;
+    white-space: nowrap;
+  }
+  td:first-child { text-align: left; color: var(--text2); font-weight: 500; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; }
+
+  .neg { color: var(--neg); font-weight: 600; }
+  .pos { color: var(--pos); font-weight: 600; }
+
+  .loading { text-align: center; color: var(--text3); padding: 2rem; font-size: 13px; }
+  .error { color: var(--pos); font-size: 12px; padding: 1rem; text-align: center; background: #fff0f0; border-radius: 4px; }
+
+  .th-app-yango { color: var(--yango) !important; }
+  .th-app-ridery { color: var(--ridery) !important; }
+  .th-app-yummy { color: var(--yummy) !important; }
+
+  @media (max-width: 700px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .tables-row { grid-template-columns: 1fr; }
+    .content { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">Y</div>
+    <div>
+      <div class="header-title">Competitive Intelligence · Ride-Hailing</div>
+      <div class="header-sub">Precios Yango vs. Ridery vs. Yummy · Live desde Google Sheets</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status" id="status">Cargando...</div>
+    <button class="refresh-btn" onclick="loadData()">↻ Actualizar</button>
+  </div>
+</div>
+
+<div class="filters">
+  <div class="filter-group"><label>Categoría</label><select id="f-cat" onchange="render()"><option value="">Todas</option></select></div>
+  <div class="filter-group"><label>Distance bracket</label><select id="f-bracket" onchange="render()"><option value="">Todos</option></select></div>
+  <div class="filter-group"><label>Peak</label><select id="f-peak" onchange="render()"><option value="">Todos</option><option>Evening Peak</option><option>Morning Peak</option></select></div>
+  <div class="filter-group"><label>Surge</label><select id="f-surge" onchange="render()"><option value="">Todos</option><option>Yes</option><option>No</option></select></div>
+  <div class="filter-group"><label>Desde</label><input type="date" id="f-d1" onchange="render()"></div>
+  <div class="filter-group"><label>Hasta</label><input type="date" id="f-d2" onchange="render()"></div>
+</div>
+
+<div class="content">
+
+  <div class="section-label">Promedio de Price W/O Discount por fecha · Competition Name · Distance bracket</div>
+
+  <div class="legend" id="main-leg">
+    <span><span class="leg-line ridery"></span>Ridery</span>
+    <span><span class="leg-line yango"></span>Yango</span>
+    <span><span class="leg-line yummy"></span>Yummy</span>
+  </div>
+
+  <div class="charts-grid" id="charts-grid"><div class="loading">Cargando gráficas...</div></div>
+
+  <div class="tables-row">
+    <div class="tbl-card">
+      <div class="section-label">Precios absolutos por fecha y bracket</div>
+      <div id="tbl-abs"><div class="loading">...</div></div>
+    </div>
+    <div class="tbl-card">
+      <div class="section-label">Diferencial % Yango vs competencia</div>
+      <div id="tbl-diff"><div class="loading">...</div></div>
+    </div>
+  </div>
+
+  <div class="tables-row">
+    <div class="tbl-card">
+      <div class="section-label">Por Peak · Precios absolutos</div>
+      <div id="tbl-peak-abs"><div class="loading">...</div></div>
+    </div>
+    <div class="tbl-card">
+      <div class="section-label">Por Peak · Diferencial %</div>
+      <div id="tbl-peak-diff"><div class="loading">...</div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SHEET_ID = '1M_V9u7gxHCs3L7Q-qoyqDiCxHhQ_ppumbPcZbRHXJIc';
+const BRACKETS = ['Average','Long','Median','Short','Very Long','Very short'];
+const APP_COLOR = { Yango: '#E02020', Ridery: '#00BFA5', Yummy: '#7B2FBE' };
+const APP_DASH  = { Yango: [], Ridery: [], Yummy: [6,3] };
+const APP_CLASS = { Yango: 'th-app-yango', Ridery: 'th-app-ridery', Yummy: 'th-app-yummy' };
+
+let raw = [], charts = {};
+
+function gvizUrl(id){ return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json`; }
+
+async function loadData(){
+  document.getElementById('status').textContent = 'Actualizando...';
+  try {
+    const res  = await fetch(gvizUrl(SHEET_ID));
+    const text = await res.text();
+    const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+    const cols = json.table.cols.map(c => c.label.trim());
+    raw = json.table.rows.map(r => {
+      const o = {};
+      r.c.forEach((cell,i) => { o[cols[i]] = cell ? (cell.v !== null ? cell.v : (cell.f || '')) : ''; });
+      return o;
+    }).filter(r => r['Our Category'] || r['Competition Name']);
+    populateFilters();
+    render();
+    const n = new Date();
+    document.getElementById('status').textContent = `Actualizado: ${n.toLocaleString('es-VE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+  } catch(e) {
+    document.getElementById('status').textContent = 'Error al cargar';
+    document.getElementById('charts-grid').innerHTML = `<div class="error">No se pudo conectar al Google Sheet.<br>Verifica que esté compartido como público (cualquiera con el enlace).</div>`;
+  }
+}
+
+function parsePrice(v){
+  if(typeof v === 'number') return v;
+  const n = parseFloat(String(v).replace(/[^0-9.\-]/g,''));
+  return isNaN(n) ? null : n;
+}
+function avg(arr){ const a=arr.filter(x=>x!=null&&!isNaN(x)); return a.length ? a.reduce((s,x)=>s+x,0)/a.length : null; }
+function fmt(v,d=2){ return v==null ? '-' : (+v).toFixed(d); }
+
+function parseDate(v){
+  if(!v) return null;
+  if(v instanceof Date) return v;
+  if(typeof v === 'string'){ const d=new Date(v); return isNaN(d)?null:d; }
+  return null;
+}
+
+function populateFilters(){
+  const cats    = [...new Set(raw.map(r=>r['Our Category']).filter(Boolean))].sort();
+  const brackets= [...new Set(raw.map(r=>r['Distance bracket']).filter(Boolean))].sort();
+  const fc = document.getElementById('f-cat');
+  fc.innerHTML = '<option value="">Todas</option>' + cats.map(c=>`<option>${c}</option>`).join('');
+  const fb = document.getElementById('f-bracket');
+  fb.innerHTML = '<option value="">Todos</option>' + brackets.map(b=>`<option>${b}</option>`).join('');
+  const dates = raw.map(r=>parseDate(r['Date'])).filter(Boolean).sort((a,b)=>a-b);
+  if(dates.length){
+    document.getElementById('f-d1').value = dates[0].toISOString().slice(0,10);
+    document.getElementById('f-d2').value = dates[dates.length-1].toISOString().slice(0,10);
+  }
+}
+
+function getFiltered(){
+  const cat    = document.getElementById('f-cat').value;
+  const bracket= document.getElementById('f-bracket').value;
+  const peak   = document.getElementById('f-peak').value;
+  const surge  = document.getElementById('f-surge').value;
+  const d1     = document.getElementById('f-d1').value;
+  const d2     = document.getElementById('f-d2').value;
+  return raw.filter(r=>{
+    if(cat    && r['Our Category']      !== cat)    return false;
+    if(bracket&& r['Distance bracket'] !== bracket) return false;
+    if(peak   && r['Peak']             !== peak)    return false;
+    if(surge  && String(r['Surge'])    !== surge)   return false;
+    const rd = parseDate(r['Date']);
+    if(d1 && rd && rd < new Date(d1))           return false;
+    if(d2 && rd && rd > new Date(d2+'T23:59:59')) return false;
+    return true;
+  });
+}
+
+function getApps(data){
+  const comps = [...new Set(data.map(r=>r['Competition Name']).filter(r=>r&&r!=='Yango'))];
+  return ['Yango',...comps];
+}
+
+function rowsByApp(data, app){
+  return app==='Yango'
+    ? data.filter(r=>!r['Competition Name']||r['Competition Name']==='Yango')
+    : data.filter(r=>r['Competition Name']===app);
+}
+
+function render(){
+  const data = getFiltered();
+  if(!data.length){
+    document.getElementById('charts-grid').innerHTML='<div class="loading">Sin datos para los filtros seleccionados.</div>';
+    return;
+  }
+  const apps = getApps(data);
+  const activeBrackets = document.getElementById('f-bracket').value
+    ? [document.getElementById('f-bracket').value]
+    : BRACKETS.filter(b=>[...new Set(data.map(r=>r['Distance bracket']))].includes(b));
+  const dates = [...new Set(data.map(r=>{ const d=parseDate(r['Date']); return d?d.toISOString().slice(0,10):null; }).filter(Boolean))].sort();
+
+  // Update legend
+  document.getElementById('main-leg').innerHTML = apps.map(a=>{
+    const c = APP_COLOR[a]||'#888';
+    const isDash = APP_DASH[a]&&APP_DASH[a].length;
+    const lineStyle = isDash ? `border-top: 3px dashed ${c}; background:transparent; height:0;` : `background:${c};height:3px;`;
+    return `<span><span style="width:24px;display:inline-block;${lineStyle}border-radius:2px;"></span>${a}</span>`;
+  }).join('');
+
+  // Charts
+  const grid = document.getElementById('charts-grid');
+  grid.innerHTML = '';
+  grid.style.gridTemplateColumns = `repeat(${Math.min(3,activeBrackets.length)},1fr)`;
+  Object.keys(charts).forEach(k=>{ try{charts[k].destroy();}catch(e){} });
+  charts = {};
+
+  activeBrackets.forEach(bracket=>{
+    const cid = 'ch_'+bracket.replace(/\s/g,'_');
+    const card = document.createElement('div');
+    card.className = 'chart-card';
+    card.innerHTML = `<div class="ct">${bracket}</div><div style="position:relative;height:160px;"><canvas id="${cid}" role="img" aria-label="Precios ${bracket}"></canvas></div>`;
+    grid.appendChild(card);
+    setTimeout(()=>{
+      const el = document.getElementById(cid); if(!el) return;
+      const datasets = apps.map(app=>{
+        const rows = rowsByApp(data,app).filter(r=>r['Distance bracket']===bracket);
+        const pts = dates.map(d=>{
+          const dr = rows.filter(r=>{ const rd=parseDate(r['Date']); return rd&&rd.toISOString().slice(0,10)===d; });
+          const a = avg(dr.map(r=>parsePrice(r['Price W/O Discount'])));
+          return a!=null ? parseFloat(a.toFixed(2)) : null;
+        });
+        return {
+          label: app, data: pts,
+          borderColor: APP_COLOR[app]||'#888',
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          borderDash: APP_DASH[app]||[],
+          borderWidth: 2,
+          pointRadius: 2,
+          spanGaps: true
+        };
+      });
+      charts[cid] = new Chart(el, {
+        type: 'line',
+        data: { labels: dates.map(d=>d.slice(5)), datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { maxTicksLimit: 6, font: { size: 9 }, color: '#888' }, grid: { color: '#f0f0f0' } },
+            y: { ticks: { font: { size: 9 }, color: '#888', callback: v=>v.toFixed(1) }, grid: { color: '#f0f0f0' } }
+          }
+        }
+      });
+    }, 50);
+  });
+
+  renderTableAbs(data, dates, activeBrackets, apps);
+  renderTableDiff(data, dates, activeBrackets, apps);
+  renderPeakTables(data, activeBrackets, apps);
+}
+
+function renderTableAbs(data, dates, brackets, apps){
+  const showDates = dates.slice(-12);
+  let html = `<table><thead><tr><th>Fecha</th>`;
+  brackets.forEach(b=>apps.forEach(a=>{
+    html+=`<th class="${APP_CLASS[a]||''}">${b}<br>${a}</th>`;
+  }));
+  html += `</tr></thead><tbody>`;
+  showDates.forEach(d=>{
+    html += `<tr><td>${d.slice(5)}</td>`;
+    brackets.forEach(b=>{
+      apps.forEach(a=>{
+        const rows = rowsByApp(data,a).filter(r=>{ const rd=parseDate(r['Date']); return rd&&rd.toISOString().slice(0,10)===d&&r['Distance bracket']===b; });
+        const v = avg(rows.map(r=>parsePrice(r['Price W/O Discount'])));
+        html += `<td>${fmt(v)}</td>`;
+      });
+    });
+    html += `</tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById('tbl-abs').innerHTML = html;
+}
+
+function renderTableDiff(data, dates, brackets, apps){
+  const compApps = apps.filter(a=>a!=='Yango');
+  const showDates = dates.slice(-12);
+  let html = `<table><thead><tr><th>Fecha</th>`;
+  brackets.forEach(b=>compApps.forEach(a=>{
+    html+=`<th class="${APP_CLASS[a]||''}">${b}<br>vs ${a}</th>`;
+  }));
+  html += `</tr></thead><tbody>`;
+  showDates.forEach(d=>{
+    html += `<tr><td>${d.slice(5)}</td>`;
+    brackets.forEach(b=>{
+      compApps.forEach(a=>{
+        const yRows = rowsByApp(data,'Yango').filter(r=>{ const rd=parseDate(r['Date']); return rd&&rd.toISOString().slice(0,10)===d&&r['Distance bracket']===b; });
+        const cRows = rowsByApp(data,a).filter(r=>{ const rd=parseDate(r['Date']); return rd&&rd.toISOString().slice(0,10)===d&&r['Distance bracket']===b; });
+        const yA = avg(yRows.map(r=>parsePrice(r['Price W/O Discount'])));
+        const cA = avg(cRows.map(r=>parsePrice(r['Price W/O Discount'])));
+        if(yA==null||cA==null||cA===0){ html+=`<td>-</td>`; return; }
+        const pct = ((yA-cA)/cA)*100;
+        const cls = pct<0?'neg':'pos';
+        html+=`<td class="${cls}">${pct>=0?'+':''}${pct.toFixed(1)}%</td>`;
+      });
+    });
+    html += `</tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById('tbl-diff').innerHTML = html;
+}
+
+function renderPeakTables(data, brackets, apps){
+  const peaks = ['Evening Peak','Morning Peak'];
+  const compApps = apps.filter(a=>a!=='Yango');
+
+  // Abs
+  let html = `<table><thead><tr><th>Peak</th>`;
+  brackets.forEach(b=>apps.forEach(a=>{
+    html+=`<th class="${APP_CLASS[a]||''}">${b}<br>${a}</th>`;
+  }));
+  html += `</tr></thead><tbody>`;
+  peaks.forEach(pk=>{
+    html += `<tr><td>${pk}</td>`;
+    brackets.forEach(b=>{
+      apps.forEach(a=>{
+        const rows = rowsByApp(data,a).filter(r=>r['Peak']===pk&&r['Distance bracket']===b);
+        const v = avg(rows.map(r=>parsePrice(r['Price W/O Discount'])));
+        html += `<td>${fmt(v)}</td>`;
+      });
+    });
+    html += `</tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById('tbl-peak-abs').innerHTML = html;
+
+  // Diff
+  let html2 = `<table><thead><tr><th>Peak</th>`;
+  brackets.forEach(b=>compApps.forEach(a=>{
+    html2+=`<th class="${APP_CLASS[a]||''}">${b}<br>vs ${a}</th>`;
+  }));
+  html2 += `</tr></thead><tbody>`;
+  peaks.forEach(pk=>{
+    html2 += `<tr><td>${pk}</td>`;
+    brackets.forEach(b=>{
+      compApps.forEach(a=>{
+        const yRows = rowsByApp(data,'Yango').filter(r=>r['Peak']===pk&&r['Distance bracket']===b);
+        const cRows = rowsByApp(data,a).filter(r=>r['Peak']===pk&&r['Distance bracket']===b);
+        const yA = avg(yRows.map(r=>parsePrice(r['Price W/O Discount'])));
+        const cA = avg(cRows.map(r=>parsePrice(r['Price W/O Discount'])));
+        if(yA==null||cA==null||cA===0){ html2+=`<td>-</td>`; return; }
+        const pct = ((yA-cA)/cA)*100;
+        const cls = pct<0?'neg':'pos';
+        html2+=`<td class="${cls}">${pct>=0?'+':''}${pct.toFixed(1)}%</td>`;
+      });
+    });
+    html2 += `</tr>`;
+  });
+  html2 += `</tbody></table>`;
+  document.getElementById('tbl-peak-diff').innerHTML = html2;
+}
+
+loadData();
+</script>
+</body>
+</html>
