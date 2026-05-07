@@ -299,9 +299,7 @@ function getApps(data){
 }
 
 function rowsByApp(data, app){
-  return app === 'Yango'
-    ? data.filter(function(r){ return !r[COMP_COL] || r[COMP_COL] === 'Yango'; })
-    : data.filter(function(r){ return r[COMP_COL] === app; });
+  return data.filter(function(r){ return r[COMP_COL] === app; });
 }
 
 function render(){
