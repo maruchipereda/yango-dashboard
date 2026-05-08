@@ -157,7 +157,7 @@
 <!-- FILTERS -->
 <div class="filters-bar">
   <div class="filter-group"><label>Category</label><select id="f-cat" onchange="render()"><option value="">All</option></select></div>
-  <div class="filter-group"><label>Peak</label><select id="f-peak" onchange="render()"><option value="">All</option><option>Evening Peak</option><option>Morning Peak</option></select></div>
+  <div class="filter-group"><label>Peak</label><select id="f-peak" onchange="render()"><option value="">All</option></select></div>
   <div class="filter-group"><label>From</label><input type="date" id="f-d1" onchange="render()"></div>
   <div class="filter-group"><label>To</label><input type="date" id="f-d2" onchange="render()"></div>
   <div class="filter-divider"></div>
@@ -347,8 +347,10 @@ function toISO(v){ var d=parseDate(v); return d?d.toISOString().slice(0,10):null
 function populateFilters(){
   var cats=Array.from(new Set(raw1.map(function(r){return r[CAT1];}).concat(raw2.map(function(r){return r[CAT2];})).filter(Boolean))).sort();
   var brackets=Array.from(new Set(raw1.map(function(r){return r[BR1];}).filter(Boolean))).sort();
+  var allPeaks=Array.from(new Set(raw1.map(function(r){return r[PEAK1];}).concat(raw2.map(function(r){return r[PEAK2];})).filter(Boolean))).sort();
   document.getElementById('f-cat').innerHTML='<option value="">All</option>'+cats.map(function(c){return'<option>'+c+'</option>';}).join('');
   document.getElementById('f-bracket').innerHTML='<option value="">All</option>'+brackets.map(function(b){return'<option>'+b+'</option>';}).join('');
+  document.getElementById('f-peak').innerHTML='<option value="">All</option>'+allPeaks.map(function(p){return'<option>'+p+'</option>';}).join('');
   var dates=raw1.map(function(r){return parseDate(r[DATE1]);}).filter(Boolean).sort(function(a,b){return a-b;});
   if(dates.length){
     document.getElementById('f-d1').value=dates[0].toISOString().slice(0,10);
@@ -480,7 +482,7 @@ function makeTableDiff(elId, data, dates, groups, groupKey, compCol, dateCol, pr
 }
 
 function makeTablePeak(absId, diffId, data, groups, groupKey, compCol, peakCol, priceCol){
-  var peaks=['Evening Peak','Morning Peak'];
+  var peaks=Array.from(new Set(data.map(function(r){return r[peakCol];}).filter(Boolean))).sort();
   var apps=getApps(data,compCol);
   var compApps=apps.filter(function(a){return a!=='Yango';});
 
