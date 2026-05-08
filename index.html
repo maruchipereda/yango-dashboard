@@ -284,7 +284,7 @@ function detectCols(rows, isMin){
 async function loadAll(){
   document.getElementById('status').textContent='Loading...';
   try{
-    var r1 = await fetch(gviz(SHEET_ID,'1685563286'));
+    var r1 = await fetch(gviz(SHEET_ID,GID1));
     var t1 = await r1.text();
     var j1 = JSON.parse(t1.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
     raw1 = parseRows(j1);
