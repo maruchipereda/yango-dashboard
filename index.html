@@ -324,10 +324,16 @@ function detectCols(rows, isMin){
 async function loadAll(){
   document.getElementById('status').textContent='Loading...';
   try{
-    raw1 = await fetchSheet(SHEET_ID, GID1);
+    var r1 = await fetch('https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&gid='+GID1);
+    var t1 = await r1.text();
+    var j1 = JSON.parse(t1.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+    raw1 = parseRows(j1);
     if(raw1.length) detectCols(raw1,false);
 
-    raw2 = await fetchSheet(SHEET_ID, GID2);
+    var r2 = await fetch('https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&gid='+GID2);
+    var t2 = await r2.text();
+    var j2 = JSON.parse(t2.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+    raw2 = parseRows(j2);
     if(raw2.length) detectCols(raw2,true);
 
     populateFilters();
@@ -337,7 +343,7 @@ async function loadAll(){
     var allDates1=Array.from(new Set(raw1.map(function(r){return toISO(r[DATE1]);}).filter(Boolean))).sort();
     var allDates2=Array.from(new Set(raw2.map(function(r){return toISO(r[DATE2]);}).filter(Boolean))).sort();
     document.getElementById('debug-info').innerHTML=
-      '<b>Tab 1:</b> price="'+P1+'" | rows='+raw1.length+' | dates: '+allDates1[0]+' to '+allDates1[allDates1.length-1]+'<br>'+
+      '<b>Tab 1:</b> price="'+P1+'" | bracket="'+BR1+'" | rows='+raw1.length+' | dates: '+allDates1[0]+' to '+allDates1[allDates1.length-1]+'<br>'+
       '<b>Tab 2:</b> price="'+P2+'" | rows='+raw2.length+' | dates: '+allDates2[0]+' to '+allDates2[allDates2.length-1]+'<br>'+
       '<b>Tab1 row 0:</b> price_raw="'+s1[P1]+'" parsed='+parsePrice(s1[P1])+' | date_raw="'+s1[DATE1]+'" parsed='+toISO(s1[DATE1])+'<br>'+
       '<b>Tab2 row 0:</b> price_raw="'+s2[P2]+'" parsed='+parsePrice(s2[P2])+' | date_raw="'+s2[DATE2]+'" parsed='+toISO(s2[DATE2]);
