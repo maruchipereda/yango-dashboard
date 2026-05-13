@@ -251,11 +251,21 @@ var P2='Full price', COMP2='Competition Name', CAT2='Our Category', PEAK2='Peak'
 
 function gviz(id,gid){ return 'https://docs.google.com/spreadsheets/d/'+id+'/gviz/tq?tqx=out:json&gid='+gid; }
 
+function normalizePeak(v){
+  if(!v) return v;
+  // Normalize "Evening peak" -> "Evening Peak", "Morning peak" -> "Morning Peak"
+  return String(v).replace(/\b(evening|morning|no)\s+(peak|range)\b/gi, function(m){
+    return m.charAt(0).toUpperCase() + m.slice(1,m.lastIndexOf(' ')+1) + m.slice(m.lastIndexOf(' ')+1,m.lastIndexOf(' ')+2).toUpperCase() + m.slice(m.lastIndexOf(' ')+2).toLowerCase();
+  }).replace(/Evening peak/,'Evening Peak').replace(/Morning peak/,'Morning Peak').replace(/No range/,'No Range');
+}
+
 function parseRows(json){
   var cols = json.table.cols.map(function(c){ return c.label.trim(); });
   return json.table.rows.map(function(r){
     var o={};
     r.c.forEach(function(cell,i){ o[cols[i]]=cell?(cell.v!==null?cell.v:(cell.f||'')):'' });
+    // Normalize peak values
+    ['Peak','peak'].forEach(function(k){ if(o[k]) o[k]=normalizePeak(o[k]); });
     return o;
   }).filter(function(r){ return Object.values(r).some(function(v){ return v!==''; }); });
 }
