@@ -253,10 +253,11 @@ function gviz(id,gid){ return 'https://docs.google.com/spreadsheets/d/'+id+'/gvi
 
 function normalizePeak(v){
   if(!v) return v;
-  // Normalize "Evening peak" -> "Evening Peak", "Morning peak" -> "Morning Peak"
-  return String(v).replace(/\b(evening|morning|no)\s+(peak|range)\b/gi, function(m){
-    return m.charAt(0).toUpperCase() + m.slice(1,m.lastIndexOf(' ')+1) + m.slice(m.lastIndexOf(' ')+1,m.lastIndexOf(' ')+2).toUpperCase() + m.slice(m.lastIndexOf(' ')+2).toLowerCase();
-  }).replace(/Evening peak/,'Evening Peak').replace(/Morning peak/,'Morning Peak').replace(/No range/,'No Range');
+  var s = String(v).trim();
+  if(s.toLowerCase() === 'evening peak') return 'Evening Peak';
+  if(s.toLowerCase() === 'morning peak') return 'Morning Peak';
+  if(s.toLowerCase() === 'no range') return 'No Range';
+  return s;
 }
 
 function parseRows(json){
