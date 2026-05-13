@@ -251,6 +251,35 @@ var P2='Full price', COMP2='Competition Name', CAT2='Our Category', PEAK2='Peak'
 
 function gviz(id,gid){ return 'https://docs.google.com/spreadsheets/d/'+id+'/gviz/tq?tqx=out:json&gid='+gid; }
 
+async function fetchSheet(id, gid){
+  var url = 'https://docs.google.com/spreadsheets/d/'+id+'/export?format=csv&gid='+gid;
+  var res = await fetch(url);
+  var text = await res.text();
+  var lines = text.split('\n').filter(function(l){ return l.trim(); });
+  if(!lines.length) return [];
+  var headers = parseCSVLine(lines[0]);
+  return lines.slice(1).map(function(line){
+    var vals = parseCSVLine(line);
+    var o = {};
+    headers.forEach(function(h,i){ o[h.trim()] = (vals[i]||'').trim(); });
+    var peakKey = Object.keys(o).find(function(k){return k.toLowerCase()==='peak';});
+    if(peakKey && o[peakKey]) o[peakKey] = normalizePeak(o[peakKey]);
+    return o;
+  }).filter(function(r){ return Object.values(r).some(function(v){ return v!==''; }); });
+}
+
+function parseCSVLine(line){
+  var result=[], cur='', inQuote=false;
+  for(var i=0;i<line.length;i++){
+    var c=line[i];
+    if(c==='"'){ inQuote=!inQuote; }
+    else if(c===','&&!inQuote){ result.push(cur); cur=''; }
+    else { cur+=c; }
+  }
+  result.push(cur);
+  return result;
+}
+
 function normalizePeak(v){
   if(!v) return v;
   var s = String(v).trim();
@@ -295,30 +324,23 @@ function detectCols(rows, isMin){
 async function loadAll(){
   document.getElementById('status').textContent='Loading...';
   try{
-    var r1 = await fetch(gviz(SHEET_ID,GID1));
-    var t1 = await r1.text();
-    var j1 = JSON.parse(t1.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
-    raw1 = parseRows(j1);
+    raw1 = await fetchSheet(SHEET_ID, GID1);
     if(raw1.length) detectCols(raw1,false);
-    else throw new Error('Tab Raw_data returned no rows');
 
-    var r2 = await fetch(gviz(SHEET_ID,GID2));
-    var t2 = await r2.text();
-    var j2 = JSON.parse(t2.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
-    raw2 = parseRows(j2);
+    raw2 = await fetchSheet(SHEET_ID, GID2);
     if(raw2.length) detectCols(raw2,true);
 
     populateFilters();
     render();
 
-    var s1=raw1[0], s2=raw2[0];
+    var s1=raw1[0]||{}, s2=raw2[0]||{};
     var allDates1=Array.from(new Set(raw1.map(function(r){return toISO(r[DATE1]);}).filter(Boolean))).sort();
     var allDates2=Array.from(new Set(raw2.map(function(r){return toISO(r[DATE2]);}).filter(Boolean))).sort();
     document.getElementById('debug-info').innerHTML=
-      '<b>Tab 1 (Price by distance):</b> price="'+P1+'" | bracket="'+BR1+'" | rows='+raw1.length+' | dates: '+allDates1[0]+' to '+allDates1[allDates1.length-1]+'<br>'+
-      '<b>Tab 2 (Minimum fares):</b> price="'+P2+'" | rows='+raw2.length+' | dates: '+allDates2[0]+' to '+allDates2[allDates2.length-1]+'<br>'+
-      '<b>Sample tab1 row 0:</b> price_raw="'+s1[P1]+'" parsed='+parsePrice(s1[P1])+' | date_raw="'+s1[DATE1]+'" parsed='+toISO(s1[DATE1])+'<br>'+
-      '<b>Sample tab2 row 0:</b> price_raw="'+s2[P2]+'" parsed='+parsePrice(s2[P2])+' | date_raw="'+s2[DATE2]+'" parsed='+toISO(s2[DATE2]);
+      '<b>Tab 1:</b> price="'+P1+'" | rows='+raw1.length+' | dates: '+allDates1[0]+' to '+allDates1[allDates1.length-1]+'<br>'+
+      '<b>Tab 2:</b> price="'+P2+'" | rows='+raw2.length+' | dates: '+allDates2[0]+' to '+allDates2[allDates2.length-1]+'<br>'+
+      '<b>Tab1 row 0:</b> price_raw="'+s1[P1]+'" parsed='+parsePrice(s1[P1])+' | date_raw="'+s1[DATE1]+'" parsed='+toISO(s1[DATE1])+'<br>'+
+      '<b>Tab2 row 0:</b> price_raw="'+s2[P2]+'" parsed='+parsePrice(s2[P2])+' | date_raw="'+s2[DATE2]+'" parsed='+toISO(s2[DATE2]);
 
     var n=new Date();
     document.getElementById('status').textContent='Updated: '+n.toLocaleString('es-VE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
@@ -347,7 +369,7 @@ function parseDate(v){
     var gviz=v.match(/^Date\((\d+),(\d+),(\d+)\)/);
     if(gviz){ var d2=new Date(parseInt(gviz[1]),parseInt(gviz[2]),parseInt(gviz[3])); return isNaN(d2.getTime())?null:d2; }
     var slash=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if(slash){ var d3=new Date(parseInt(slash[3]),parseInt(slash[2])-1,parseInt(slash[1])); return isNaN(d3.getTime())?null:d3; }
+    if(slash){ var d3=new Date(parseInt(slash[3]),parseInt(slash[1])-1,parseInt(slash[2])); return isNaN(d3.getTime())?null:d3; }
     var iso=v.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if(iso){ var d4=new Date(parseInt(iso[1]),parseInt(iso[2])-1,parseInt(iso[3])); return isNaN(d4.getTime())?null:d4; }
     var d5=new Date(v); return isNaN(d5.getTime())?null:d5;
