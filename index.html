@@ -266,9 +266,9 @@ function parseRows(json){
     var o={};
     r.c.forEach(function(cell,i){ o[cols[i]]=cell?(cell.v!==null?cell.v:(cell.f||'')):'' });
     var peakKey = Object.keys(o).find(function(k){return k.toLowerCase()==='peak';});
-    if(peakKey && o[peakKey]) o[peakKey] = normalizePeak(o[peakKey]);
+    if(peakKey && o[peakKey]) o[peakKey] = normalizePeak(String(o[peakKey]).trim());
     return o;
-  }).filter(function(r){ return Object.values(r).some(function(v){ return v!==null && v!==''; }); });
+  });
 }
 
 function detectCols(rows, isMin){
@@ -300,7 +300,6 @@ async function loadAll(){
     var j1 = JSON.parse(t1.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
     raw1 = parseRows(j1);
     if(raw1.length) detectCols(raw1,false);
-    else throw new Error('Tab Raw_data returned no rows');
 
     var r2 = await fetch(gviz(SHEET_ID,GID2));
     var t2 = await r2.text();
