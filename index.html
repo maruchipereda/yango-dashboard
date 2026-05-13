@@ -249,7 +249,7 @@ var raw1=[], raw2=[], charts={};
 var P1='Price W/O Discount', COMP1='Competition Name', CAT1='Our Category', BR1='Distance bracket', PEAK1='Peak', DATE1='Date', SURGE1='Surge';
 var P2='Full price', COMP2='Competition Name', CAT2='Our Category', PEAK2='Peak', DATE2='Date';
 
-function gviz(id,gid){ return 'https://docs.google.com/spreadsheets/d/'+id+'/gviz/tq?tqx=out:json&gid='+gid; }
+function gviz(id,gid){ return 'https://docs.google.com/spreadsheets/d/'+id+'/gviz/tq?tqx=out:json&gid='+gid+'&headers=1'; }
 
 function normalizePeak(v){
   if(!v) return v;
@@ -262,13 +262,13 @@ function normalizePeak(v){
 
 function parseRows(json){
   var cols = json.table.cols.map(function(c){ return c.label.trim(); });
-  return json.table.rows.filter(function(r){ return r.c && r.c.some(function(cell){ return cell && cell.v !== null && cell.v !== ''; }); }).map(function(r){
+  return json.table.rows.map(function(r){
     var o={};
     r.c.forEach(function(cell,i){ o[cols[i]]=cell?(cell.v!==null?cell.v:(cell.f||'')):'' });
-    var pk = o['Peak']||o['peak']||'';
-    if(pk) o[Object.keys(o).find(function(k){return k.toLowerCase()==='peak';})||'Peak'] = normalizePeak(pk);
+    var peakKey = Object.keys(o).find(function(k){return k.toLowerCase()==='peak';});
+    if(peakKey && o[peakKey]) o[peakKey] = normalizePeak(o[peakKey]);
     return o;
-  });
+  }).filter(function(r){ return Object.values(r).some(function(v){ return v!==null && v!==''; }); });
 }
 
 function detectCols(rows, isMin){
