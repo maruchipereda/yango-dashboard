@@ -170,12 +170,12 @@
 <div class="content">
 
   <!-- EXECUTIVE SUMMARY CARDS -->
-  <div id="exec-cards" style="margin-bottom:20px;">
+  <div style="margin-bottom:20px;">
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#888;margin-bottom:8px;">Price by distance · executive summary</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px;" id="cards-dist"></div>
     <div style="display:flex;align-items:center;gap:10px;margin:14px 0 10px;">
       <div style="flex:1;height:1px;background:#e0e0e0;"></div>
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#E02020;">Minimum fares</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#E02020;">Minimum fares · executive summary</div>
       <div style="flex:1;height:1px;background:#e0e0e0;"></div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;" id="cards-min"></div>
@@ -258,6 +258,7 @@ var APP_COLOR = { Yango:'#E02020', Ridery:'#00BFA5', Yummy:'#7B2FBE' };
 var APP_DASH  = { Yango:[], Ridery:[], Yummy:[6,3] };
 
 var raw1=[], raw2=[], charts={};
+var currentIsoFn = toISO; // used inside chart/table functions
 var P1='Price W/O Discount', COMP1='Competition Name', CAT1='Our Category', BR1='Distance bracket', PEAK1='Peak', DATE1='Date', SURGE1='Surge';
 var P2='Full price', COMP2='Competition Name', CAT2='Our Category', PEAK2='Peak', DATE2='Date';
 
@@ -336,10 +337,16 @@ function detectCols(rows, isMin){
 async function loadAll(){
   document.getElementById('status').textContent='Loading...';
   try{
-    raw1 = await fetchSheet(SHEET_ID, GID1);
+    var r1 = await fetch('https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&gid='+GID1);
+    var t1 = await r1.text();
+    var j1 = JSON.parse(t1.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+    raw1 = parseRows(j1);
     if(raw1.length) detectCols(raw1,false);
 
-    raw2 = await fetchSheet(SHEET_ID, GID2);
+    var r2 = await fetch('https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&gid='+GID2);
+    var t2 = await r2.text();
+    var j2 = JSON.parse(t2.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+    raw2 = parseRows(j2);
     if(raw2.length) detectCols(raw2,true);
 
     populateFilters();
@@ -347,12 +354,12 @@ async function loadAll(){
 
     var s1=raw1[0]||{}, s2=raw2[0]||{};
     var allDates1=Array.from(new Set(raw1.map(function(r){return toISO(r[DATE1]);}).filter(Boolean))).sort();
-    var allDates2=Array.from(new Set(raw2.map(function(r){return toISO(r[DATE2]);}).filter(Boolean))).sort();
+    var allDates2=Array.from(new Set(raw2.map(function(r){return toISO2(r[DATE2]);}).filter(Boolean))).sort();
     document.getElementById('debug-info').innerHTML=
-      '<b>Tab 1:</b> price="'+P1+'" | rows='+raw1.length+' | dates: '+allDates1[0]+' to '+allDates1[allDates1.length-1]+'<br>'+
+      '<b>Tab 1:</b> price="'+P1+'" | bracket="'+BR1+'" | rows='+raw1.length+' | dates: '+allDates1[0]+' to '+allDates1[allDates1.length-1]+'<br>'+
       '<b>Tab 2:</b> price="'+P2+'" | rows='+raw2.length+' | dates: '+allDates2[0]+' to '+allDates2[allDates2.length-1]+'<br>'+
       '<b>Tab1 row 0:</b> price_raw="'+s1[P1]+'" parsed='+parsePrice(s1[P1])+' | date_raw="'+s1[DATE1]+'" parsed='+toISO(s1[DATE1])+'<br>'+
-      '<b>Tab2 row 0:</b> price_raw="'+s2[P2]+'" parsed='+parsePrice(s2[P2])+' | date_raw="'+s2[DATE2]+'" parsed='+toISO(s2[DATE2]);
+      '<b>Tab2 row 0:</b> price_raw="'+s2[P2]+'" parsed='+parsePrice(s2[P2])+' | date_raw="'+s2[DATE2]+'" parsed='+toISO2(s2[DATE2]);
 
     var n=new Date();
     document.getElementById('status').textContent='Updated: '+n.toLocaleString('es-VE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
@@ -372,16 +379,24 @@ function parsePrice(v){
 function avg(arr){ var a=arr.filter(function(x){return x!=null&&!isNaN(x);}); return a.length?a.reduce(function(s,x){return s+x;},0)/a.length:null; }
 function fmt(v,d){ d=d||2; return v==null?'-':(+v).toFixed(d); }
 
-function parseDate(v){
+function parseDate(v){ return parseDateFmt(v, 'dmy'); }  // Tab 1: DD/MM/YYYY
+function parseDate2(v){ return parseDateFmt(v, 'mdy'); } // Tab 2: MM/DD/YYYY
+
+function parseDateFmt(v, fmt){
   if(!v) return null;
   if(v instanceof Date) return isNaN(v.getTime())?null:v;
   if(typeof v==='number'){ var d=new Date((v-25569)*86400*1000); return isNaN(d.getTime())?null:d; }
   if(typeof v==='string'){
     v=v.trim();
-    var gviz=v.match(/^Date\((\d+),(\d+),(\d+)\)/);
-    if(gviz){ var d2=new Date(parseInt(gviz[1]),parseInt(gviz[2]),parseInt(gviz[3])); return isNaN(d2.getTime())?null:d2; }
+    // Google gviz format: Date(2025,11,1) — month is 0-indexed
+    var gvizM=v.match(/^Date\((\d+),(\d+),(\d+)\)/);
+    if(gvizM){ var d2=new Date(parseInt(gvizM[1]),parseInt(gvizM[2]),parseInt(gvizM[3])); return isNaN(d2.getTime())?null:d2; }
     var slash=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if(slash){ var d3=new Date(parseInt(slash[3]),parseInt(slash[1])-1,parseInt(slash[2])); return isNaN(d3.getTime())?null:d3; }
+    if(slash){
+      var a=parseInt(slash[1]), b=parseInt(slash[2]), y=parseInt(slash[3]);
+      var d3 = fmt==='dmy' ? new Date(y,b-1,a) : new Date(y,a-1,b);
+      return isNaN(d3.getTime())?null:d3;
+    }
     var iso=v.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if(iso){ var d4=new Date(parseInt(iso[1]),parseInt(iso[2])-1,parseInt(iso[3])); return isNaN(d4.getTime())?null:d4; }
     var d5=new Date(v); return isNaN(d5.getTime())?null:d5;
@@ -389,6 +404,7 @@ function parseDate(v){
   return null;
 }
 function toISO(v){ var d=parseDate(v); return d?d.toISOString().slice(0,10):null; }
+function toISO2(v){ var d=parseDate2(v); return d?d.toISOString().slice(0,10):null; }
 
 function populateFilters(){
   var cats=Array.from(new Set(raw1.map(function(r){return r[CAT1];}).concat(raw2.map(function(r){return r[CAT2];})).filter(Boolean))).sort();
@@ -434,7 +450,7 @@ function filterData2(){
   return raw2.filter(function(r){
     if(f.cat&&r[CAT2]!==f.cat) return false;
     if(f.peak&&r[PEAK2]!==f.peak) return false;
-    var rd=parseDate(r[DATE2]);
+    var rd=parseDate2(r[DATE2]);
     if(f.d1&&rd&&rd<new Date(f.d1)) return false;
     if(f.d2&&rd&&rd>new Date(f.d2+'T23:59:59')) return false;
     return true;
@@ -463,7 +479,7 @@ function makeLineCharts(gridId, data, groupKey, groupVals, compCol, dateCol, pri
   grid.style.gridTemplateColumns='repeat('+Math.min(3,groupVals.length)+',1fr)';
   destroyCharts('ch'+suffix);
   var apps=getApps(data,compCol);
-  var dates=Array.from(new Set(data.map(function(r){return toISO(r[dateCol]);}).filter(Boolean))).sort();
+  var dates=Array.from(new Set(data.map(function(r){return currentIsoFn(r[dateCol]);}).filter(Boolean))).sort();
 
   groupVals.forEach(function(gval){
     var cid='ch'+suffix+'_'+gval.replace(/\s/g,'_');
@@ -476,7 +492,7 @@ function makeLineCharts(gridId, data, groupKey, groupVals, compCol, dateCol, pri
       var datasets=apps.map(function(app){
         var rows=byApp(data,app,compCol).filter(function(r){return r[groupKey]===gval;});
         var pts=dates.map(function(d){
-          var dr=rows.filter(function(r){return toISO(r[dateCol])===d;});
+          var dr=rows.filter(function(r){return currentIsoFn(r[dateCol])===d;});
           var a=avg(dr.map(function(r){return parsePrice(r[priceCol]);}));
           return a!=null?parseFloat(a.toFixed(2)):null;
         });
@@ -496,7 +512,7 @@ function makeTableAbs(elId, data, dates, groups, groupKey, compCol, dateCol, pri
   showDates.forEach(function(d){
     html+='<tr><td>'+d.slice(5)+'</td>';
     groups.forEach(function(g){apps.forEach(function(a){
-      var rows=byApp(data,a,compCol).filter(function(r){return toISO(r[dateCol])===d&&r[groupKey]===g;});
+      var rows=byApp(data,a,compCol).filter(function(r){return currentIsoFn(r[dateCol])===d&&r[groupKey]===g;});
       html+='<td>'+fmt(avg(rows.map(function(r){return parsePrice(r[priceCol]);})))+'</td>';
     });});
     html+='</tr>';
@@ -515,8 +531,8 @@ function makeTableDiff(elId, data, dates, groups, groupKey, compCol, dateCol, pr
   showDates.forEach(function(d){
     html+='<tr><td>'+d.slice(5)+'</td>';
     groups.forEach(function(g){compApps.forEach(function(a){
-      var yA=avg(byApp(data,'Yango',compCol).filter(function(r){return toISO(r[dateCol])===d&&r[groupKey]===g;}).map(function(r){return parsePrice(r[priceCol]);}));
-      var cA=avg(byApp(data,a,compCol).filter(function(r){return toISO(r[dateCol])===d&&r[groupKey]===g;}).map(function(r){return parsePrice(r[priceCol]);}));
+      var yA=avg(byApp(data,'Yango',compCol).filter(function(r){return currentIsoFn(r[dateCol])===d&&r[groupKey]===g;}).map(function(r){return parsePrice(r[priceCol]);}));
+      var cA=avg(byApp(data,a,compCol).filter(function(r){return currentIsoFn(r[dateCol])===d&&r[groupKey]===g;}).map(function(r){return parsePrice(r[priceCol]);}));
       if(yA==null||cA==null||cA===0){html+='<td>-</td>';return;}
       var pct=((yA-cA)/cA)*100;
       html+='<td class="'+(pct<0?'neg':'pos')+'">'+(pct>=0?'+':'')+pct.toFixed(1)+'%</td>';
@@ -567,10 +583,11 @@ function makeTablePeak(absId, diffId, data, groups, groupKey, compCol, peakCol, 
 function render(){
   var d1=filterData1();
   var d2=filterData2();
-  renderCards(d1, d2);
+  renderCards(d1,d2);
 
   // SECTION 1
   var apps1=getApps(d1,COMP1);
+  currentIsoFn = toISO;
   makeLegend('leg1',apps1);
   var selBracket=document.getElementById('f-bracket').value;
   var allBr=Array.from(new Set(d1.map(function(r){return r[BR1];}).filter(Boolean)));
@@ -586,10 +603,11 @@ function render(){
   }
 
   // SECTION 2
+  currentIsoFn = toISO2;
   var apps2=getApps(d2,COMP2);
   makeLegend('leg2',apps2);
   var cats=Array.from(new Set(d2.map(function(r){return r[CAT2];}).filter(Boolean))).sort();
-  var dates2=Array.from(new Set(d2.map(function(r){return toISO(r[DATE2]);}).filter(Boolean))).sort();
+  var dates2=Array.from(new Set(d2.map(function(r){return toISO2(r[DATE2]);}).filter(Boolean))).sort();
 
   if(!d2.length){ document.getElementById('charts-grid2').innerHTML='<div class="loading">No data for selected filters.</div>'; }
   else { makeLineCharts('charts-grid2',d2,CAT2,cats,COMP2,DATE2,P2,'2'); }
@@ -600,135 +618,65 @@ function render(){
   }
 }
 
-function makeCard(label, value, pill, pillType, sub, accentColor){
-  var pillClass = pillType==='neg' ? 'background:#e1f5ee;color:#0F6E56;' : pillType==='pos' ? 'background:#fcebeb;color:#A32D2D;' : 'background:#f0f0f0;color:#666;';
-  var arrow = pillType==='neg' ? '↓' : pillType==='pos' ? '↑' : '→';
+function makeCard(label, value, pill, pillType, sub, accent){
+  var ps = pillType==='neg'?'background:#e1f5ee;color:#0F6E56;':pillType==='pos'?'background:#fcebeb;color:#A32D2D;':'background:#f0f0f0;color:#666;';
+  var arrow = pillType==='neg'?'↓':pillType==='pos'?'↑':'→';
   return '<div style="background:#fff;border:0.5px solid #e0e0e0;border-radius:10px;padding:14px 16px;position:relative;overflow:hidden;">'
-    +'<div style="position:absolute;top:0;left:0;right:0;height:3px;background:'+accentColor+';"></div>'
+    +'<div style="position:absolute;top:0;left:0;right:0;height:3px;background:'+accent+';"></div>'
     +'<div style="font-size:11px;color:#888;margin-bottom:6px;margin-top:4px;">'+label+'</div>'
-    +'<div style="font-size:'+(value.length>6?'20px':'26px')+';font-weight:500;color:#1a1a1a;line-height:1;">'+value+'</div>'
-    +'<div style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;margin-top:8px;'+pillClass+'"><span>'+arrow+'</span>'+pill+'</div>'
+    +'<div style="font-size:'+(String(value).length>6?'20px':'26px')+';font-weight:500;color:#1a1a1a;line-height:1;">'+value+'</div>'
+    +'<div style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;margin-top:8px;'+ps+'"><span>'+arrow+'</span>'+pill+'</div>'
     +'<div style="font-size:11px;margin-top:6px;color:#888;">'+sub+'</div>'
     +'</div>';
 }
 
 function renderCards(d1, d2){
-  // --- PRICE BY DISTANCE cards ---
-  var apps1 = getApps(d1, COMP1);
-  var compApps1 = apps1.filter(function(a){return a!=='Yango';});
-  var yRows1 = byApp(d1,'Yango',COMP1);
-  var yAvg1 = avg(yRows1.map(function(r){return parsePrice(r[P1]);}));
+  function cardDiff(data, compCol, priceCol, isoFn, dateCol, catCol, accent, elId){
+    var apps = getApps(data, compCol);
+    var compApps = apps.filter(function(a){return a!=='Yango';});
+    var yRows = byApp(data,'Yango',compCol);
+    var yAvg = avg(yRows.map(function(r){return parsePrice(r[priceCol]);}));
+    var cAvg = avg(compApps.reduce(function(acc,a){
+      return acc.concat(byApp(data,a,compCol).map(function(r){return parsePrice(r[priceCol]);}));
+    },[]));
+    var diff = (yAvg!=null&&cAvg!=null&&cAvg!==0)?((yAvg-cAvg)/cAvg)*100:null;
+    var c1val = diff!=null?(diff>=0?'+':'')+diff.toFixed(1)+'%':'-';
+    var c1pill = diff!=null?(diff<0?'Yango cheaper':'Yango more expensive'):'-';
+    var c1type = diff!=null?(diff<0?'neg':'pos'):'neutral';
+    var c1sub = yAvg!=null&&cAvg!=null?'Yango $'+yAvg.toFixed(2)+' · Comp. $'+cAvg.toFixed(2):'';
 
-  // Card 1: overall differential vs all competitors
-  var compAvg1 = avg(compApps1.reduce(function(acc,a){
-    return acc.concat(byApp(d1,a,COMP1).map(function(r){return parsePrice(r[P1]);}));
-  },[]));
-  var diff1 = (yAvg1!=null&&compAvg1!=null&&compAvg1!==0) ? ((yAvg1-compAvg1)/compAvg1)*100 : null;
-  var card1val = diff1!=null ? (diff1>=0?'+':'')+diff1.toFixed(1)+'%' : '-';
-  var card1pill = diff1!=null ? (diff1<0?'Yango cheaper':'Yango more expensive') : '-';
-  var card1type = diff1!=null ? (diff1<0?'neg':'pos') : 'neutral';
-  var card1sub = yAvg1!=null&&compAvg1!=null ? 'Yango $'+yAvg1.toFixed(2)+' · Competitors $'+compAvg1.toFixed(2) : '';
-
-  // Card 2: category with biggest gap
-  var cats1 = Array.from(new Set(d1.map(function(r){return r[CAT1];}).filter(Boolean)));
-  var worstCat1='', worstDiff1=null, worstComp1='', worstDir1='neutral';
-  cats1.forEach(function(cat){
-    compApps1.forEach(function(a){
-      var yA=avg(byApp(d1,'Yango',COMP1).filter(function(r){return r[CAT1]===cat;}).map(function(r){return parsePrice(r[P1]);}));
-      var cA=avg(byApp(d1,a,COMP1).filter(function(r){return r[CAT1]===cat;}).map(function(r){return parsePrice(r[P1]);}));
-      if(yA!=null&&cA!=null&&cA!==0){
-        var p=((yA-cA)/cA)*100;
-        if(worstDiff1===null||Math.abs(p)>Math.abs(worstDiff1)){ worstDiff1=p; worstCat1=cat; worstComp1=a; worstDir1=p<0?'neg':'pos'; }
-      }
+    var cats = Array.from(new Set(data.map(function(r){return r[catCol];}).filter(Boolean)));
+    var wCat='',wDiff=null,wComp='',wDir='neutral';
+    cats.forEach(function(cat){
+      compApps.forEach(function(a){
+        var yA=avg(byApp(data,'Yango',compCol).filter(function(r){return r[catCol]===cat;}).map(function(r){return parsePrice(r[priceCol]);}));
+        var cA=avg(byApp(data,a,compCol).filter(function(r){return r[catCol]===cat;}).map(function(r){return parsePrice(r[priceCol]);}));
+        if(yA!=null&&cA!=null&&cA!==0){var p=((yA-cA)/cA)*100;if(wDiff===null||Math.abs(p)>Math.abs(wDiff)){wDiff=p;wCat=cat;wComp=a;wDir=p<0?'neg':'pos';}}
+      });
     });
-  });
-  var card2val = worstCat1||'-';
-  var card2pill = worstDiff1!=null ? (worstDiff1>=0?'+':'')+worstDiff1.toFixed(1)+'% vs '+worstComp1 : '-';
-  var card2sub = worstDir1==='neg'?'Yango cheaper in this category':'Yango more expensive in this category';
+    var c2val=wCat||'-';
+    var c2pill=wDiff!=null?(wDiff>=0?'+':'')+wDiff.toFixed(1)+'% vs '+wComp:'-';
+    var c2sub=wDir==='neg'?'Yango cheaper in this category':'Yango more expensive in this category';
 
-  // Card 3: WoW change
-  var dates1 = Array.from(new Set(d1.map(function(r){return toISO(r[DATE1]);}).filter(Boolean))).sort();
-  var wowVal1='-', wowPill1='No prior week data', wowType1='neutral', wowSub1='';
-  if(dates1.length>=2){
-    var lastDate1=dates1[dates1.length-1];
-    var prevDate1=dates1[0];
-    // find date ~7 days before last
-    var lastD=new Date(lastDate1);
-    var target=new Date(lastD.getTime()-7*86400000);
-    var closest=dates1.reduce(function(best,d){
-      return Math.abs(new Date(d)-target)<Math.abs(new Date(best)-target)?d:best;
-    }, dates1[0]);
-    var lastAvg1=avg(yRows1.filter(function(r){return toISO(r[DATE1])===lastDate1;}).map(function(r){return parsePrice(r[P1]);}));
-    var prevAvg1=avg(yRows1.filter(function(r){return toISO(r[DATE1])===closest;}).map(function(r){return parsePrice(r[P1]);}));
-    if(lastAvg1!=null&&prevAvg1!=null&&prevAvg1!==0){
-      var chg1=((lastAvg1-prevAvg1)/prevAvg1)*100;
-      wowVal1=(chg1>=0?'+':'')+chg1.toFixed(1)+'%';
-      wowPill1=(chg1>=0?'Up':'Down')+' vs prev. week';
-      wowType1=chg1>0?'pos':'neg';
-      wowSub1=closest.slice(5)+' → '+lastDate1.slice(5);
-    }
-  }
-
-  document.getElementById('cards-dist').innerHTML =
-    makeCard('vs. competition (avg)', card1val, card1pill, card1type, card1sub, '#E02020') +
-    makeCard('Biggest price gap', card2val, card2pill, worstDir1, card2sub, '#E02020') +
-    makeCard('Week-over-week (Yango)', wowVal1, wowPill1, wowType1, wowSub1, '#E02020');
-
-  // --- MINIMUM FARES cards ---
-  var apps2 = getApps(d2, COMP2);
-  var compApps2 = apps2.filter(function(a){return a!=='Yango';});
-  var yRows2 = byApp(d2,'Yango',COMP2);
-  var yAvg2 = avg(yRows2.map(function(r){return parsePrice(r[P2]);}));
-
-  var compAvg2 = avg(compApps2.reduce(function(acc,a){
-    return acc.concat(byApp(d2,a,COMP2).map(function(r){return parsePrice(r[P2]);}));
-  },[]));
-  var diff2 = (yAvg2!=null&&compAvg2!=null&&compAvg2!==0) ? ((yAvg2-compAvg2)/compAvg2)*100 : null;
-  var card4val = diff2!=null ? (diff2>=0?'+':'')+diff2.toFixed(1)+'%' : '-';
-  var card4pill = diff2!=null ? (diff2<0?'Yango cheaper':'Yango more expensive') : '-';
-  var card4type = diff2!=null ? (diff2<0?'neg':'pos') : 'neutral';
-  var card4sub = yAvg2!=null&&compAvg2!=null ? 'Yango $'+yAvg2.toFixed(2)+' · Competitors $'+compAvg2.toFixed(2) : '';
-
-  var cats2 = Array.from(new Set(d2.map(function(r){return r[CAT2];}).filter(Boolean)));
-  var worstCat2='', worstDiff2=null, worstComp2='', worstDir2='neutral';
-  cats2.forEach(function(cat){
-    compApps2.forEach(function(a){
-      var yA=avg(byApp(d2,'Yango',COMP2).filter(function(r){return r[CAT2]===cat;}).map(function(r){return parsePrice(r[P2]);}));
-      var cA=avg(byApp(d2,a,COMP2).filter(function(r){return r[CAT2]===cat;}).map(function(r){return parsePrice(r[P2]);}));
-      if(yA!=null&&cA!=null&&cA!==0){
-        var p=((yA-cA)/cA)*100;
-        if(worstDiff2===null||Math.abs(p)>Math.abs(worstDiff2)){ worstDiff2=p; worstCat2=cat; worstComp2=a; worstDir2=p<0?'neg':'pos'; }
+    var dates=Array.from(new Set(data.map(function(r){return isoFn(r[dateCol]);}).filter(Boolean))).sort();
+    var wVal='-',wPill='No prior week data',wType='neutral',wSub='';
+    if(dates.length>=2){
+      var last=dates[dates.length-1];
+      var tgt=new Date(new Date(last).getTime()-7*86400000);
+      var prev=dates.reduce(function(b,d){return Math.abs(new Date(d)-tgt)<Math.abs(new Date(b)-tgt)?d:b;},dates[0]);
+      if(prev!==last){
+        var lA=avg(yRows.filter(function(r){return isoFn(r[dateCol])===last;}).map(function(r){return parsePrice(r[priceCol]);}));
+        var pA=avg(yRows.filter(function(r){return isoFn(r[dateCol])===prev;}).map(function(r){return parsePrice(r[priceCol]);}));
+        if(lA!=null&&pA!=null&&pA!==0){var chg=((lA-pA)/pA)*100;wVal=(chg>=0?'+':'')+chg.toFixed(1)+'%';wPill=(chg>=0?'Up':'Down')+' vs prev. week';wType=chg>0?'pos':'neg';wSub=prev.slice(5)+' → '+last.slice(5);}
       }
-    });
-  });
-  var card5val = worstCat2||'-';
-  var card5pill = worstDiff2!=null ? (worstDiff2>=0?'+':'')+worstDiff2.toFixed(1)+'% vs '+worstComp2 : '-';
-  var card5sub = worstDir2==='neg'?'Yango cheaper in this category':'Yango more expensive in this category';
-
-  var dates2 = Array.from(new Set(d2.map(function(r){return toISO2(r[DATE2]);}).filter(Boolean))).sort();
-  var wowVal2='-', wowPill2='No prior week data', wowType2='neutral', wowSub2='';
-  if(dates2.length>=2){
-    var lastDate2=dates2[dates2.length-1];
-    var lastD2=new Date(lastDate2);
-    var target2=new Date(lastD2.getTime()-7*86400000);
-    var closest2=dates2.reduce(function(best,d){
-      return Math.abs(new Date(d)-target2)<Math.abs(new Date(best)-target2)?d:best;
-    }, dates2[0]);
-    var lastAvg2=avg(yRows2.filter(function(r){return toISO2(r[DATE2])===lastDate2;}).map(function(r){return parsePrice(r[P2]);}));
-    var prevAvg2=avg(yRows2.filter(function(r){return toISO2(r[DATE2])===closest2;}).map(function(r){return parsePrice(r[P2]);}));
-    if(lastAvg2!=null&&prevAvg2!=null&&prevAvg2!==0&&closest2!==lastDate2){
-      var chg2=((lastAvg2-prevAvg2)/prevAvg2)*100;
-      wowVal2=(chg2>=0?'+':'')+chg2.toFixed(1)+'%';
-      wowPill2=(chg2>=0?'Up':'Down')+' vs prev. week';
-      wowType2=chg2>0?'pos':'neg';
-      wowSub2=closest2.slice(5)+' → '+lastDate2.slice(5);
     }
+    document.getElementById(elId).innerHTML=
+      makeCard('vs. competition (avg)',c1val,c1pill,c1type,c1sub,accent)+
+      makeCard('Biggest price gap',c2val,c2pill,wDir,c2sub,accent)+
+      makeCard('Week-over-week (Yango)',wVal,wPill,wType,wSub,accent);
   }
-
-  document.getElementById('cards-min').innerHTML =
-    makeCard('vs. competition (avg)', card4val, card4pill, card4type, card4sub, '#888') +
-    makeCard('Biggest price gap', card5val, card5pill, worstDir2, card5sub, '#888') +
-    makeCard('Week-over-week (Yango)', wowVal2, wowPill2, wowType2, wowSub2, '#888');
+  cardDiff(d1,COMP1,P1,toISO,DATE1,CAT1,'#E02020','cards-dist');
+  cardDiff(d2,COMP2,P2,toISO2,DATE2,CAT2,'#888780','cards-min');
 }
 
 loadAll();
