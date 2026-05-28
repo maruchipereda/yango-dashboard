@@ -694,17 +694,19 @@ function renderCards(d1, d2){
     if(dates.length>=2){
       var last = dates[dates.length-1];
       var tgt4w = new Date(new Date(last).getTime()-28*86400000);
-      // Find closest date to 4 weeks ago, but exclude last date itself
       var prev4w = dates.filter(function(d){return d!==last;}).reduce(function(b,d){
         return Math.abs(new Date(d)-tgt4w)<Math.abs(new Date(b)-tgt4w)?d:b;
       }, dates[0]);
-      function diffAtDate(d){
-        var yA=avg(yRows.filter(function(r){return isoFn(r[dateCol])===d;}).map(function(r){return parsePrice(r[priceCol]);}));
-        var cA=avg(compApps.reduce(function(acc,a){return acc.concat(byApp(data,a,compCol).filter(function(r){return isoFn(r[dateCol])===d;}).map(function(r){return parsePrice(r[priceCol]);}));},[]));
+      // Use a window of ±3 dates around target for robustness
+      function diffAtDateWindow(targetDate, allDates){
+        var idx = allDates.indexOf(targetDate);
+        var windowDates = allDates.slice(Math.max(0,idx-2), Math.min(allDates.length,idx+3));
+        var yA=avg(yRows.filter(function(r){return windowDates.indexOf(isoFn(r[dateCol]))!==-1;}).map(function(r){return parsePrice(r[priceCol]);}));
+        var cA=avg(compApps.reduce(function(acc,a){return acc.concat(byApp(data,a,compCol).filter(function(r){return windowDates.indexOf(isoFn(r[dateCol]))!==-1;}).map(function(r){return parsePrice(r[priceCol]);}));},[]));
         return (yA!=null&&cA!=null&&cA!==0)?((yA-cA)/cA)*100:null;
       }
-      var diffNow = diffAtDate(last);
-      var diffThen = diffAtDate(prev4w);
+      var diffNow = diffAtDateWindow(last, dates);
+      var diffThen = diffAtDateWindow(prev4w, dates);
       if(diffNow!=null&&diffThen!=null){
         var trendChg = diffNow - diffThen;
         var trendType = trendChg<0?'neg':'pos';
@@ -715,7 +717,7 @@ function renderCards(d1, d2){
           +'<div><div style="font-size:10px;color:#888;">Now</div><div style="font-size:18px;font-weight:500;color:#1a1a1a;">'+(diffNow>=0?'+':'')+diffNow.toFixed(1)+'%</div></div>'
           +'</div>'
           +pill(trendPill, trendType)
-          +'<div style="font-size:11px;color:#888;margin-top:6px;">'+prev4w.slice(5)+' → '+last.slice(5)+'</div>';
+          +'<div style="font-size:11px;color:#888;margin-top:6px;">~'+prev4w.slice(5)+' → ~'+last.slice(5)+'</div>';
       }
     }
     var card3 = makeCard2('4-week trend · differential vs competition', accent, c3html);
